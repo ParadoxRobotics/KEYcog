@@ -15,14 +15,13 @@ class targetModel():
         self.targetMask = None # target binary mask
         # image keypoint extractor
         self.orb = cv2.ORB_create(nfeatures=nbPointMax)
-        self.kp = None
-        self.des = None
         # parameters for the probabilistic model
         self.pt = [] # keypoint [x,y] -> [W,H]
         self.angle = [] # angle of the keypoint
         self.scale = [] # size response of the keypoint (scale)
         self.angleCenter = [] # angle between the ORB keypoint and the center of the image
         self.scaleCenter = [] # length of the line between the ORB point and the middle point devide by the scale of the ORB descriptor
+        self.descriptor = None
 
     def createModel(self, img, mask):
         # store target image and mask
@@ -30,16 +29,29 @@ class targetModel():
         self.targetMask = mask
         # compute ORB keypoint and descriptor
         kp, des = self.orb.detectAndCompute(self.targetImage, None)
+        # store the descriptor
+        self.descriptor = des
+        # draw keypoint
         kp_img = cv2.drawKeypoints(img, kp, None,  flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        plt.imshow(self.targetMask)
-        plt.show()
         plt.imshow(kp_img)
         plt.show()
-        # get point, angle and size from keypoints
-        for i in range(0,len(kp)):
-            self.pt.append(kp[i].pt)
-            self.angle.append(kp[i].angle)
-            self.scale.append(kp[i].size)
+
+        if mask != None:
+            # get point, angle and size from keypoints in the binary mask
+            Hm, Wm = np.where(mask == 255)
+            maskpoint = np.array((Wm, Hm)).T
+            for i in range(0,len(kp)):
+                if np.round(kp[i].pt) in maskpoint:
+                    self.pt.append(kp[i].pt)
+                    self.angle.append(kp[i].angle)
+                    self.scale.append(kp[i].size)
+        else:
+            # get point, angle and size from keypoints
+            for i in range(0,len(kp)):
+                self.pt.append(kp[i].pt)
+                self.angle.append(kp[i].angle)
+                self.scale.append(kp[i].size)
+
         # compute the midle of the cropped image
         centerH = int(self.targetImage.shape[1]/2)
         centerW = int(self.targetImage.shape[0]/2)
