@@ -38,9 +38,9 @@ class targetModel():
         plt.imshow(kp_img)
         plt.show()
 
-        if mask.all() != None:
+        if self.targetMask is not None:
             # get point, angle and size from keypoints in the binary mask
-            Hm, Wm = np.where(mask == 255)
+            Hm, Wm = np.where(self.targetMask == 255)
             maskpoint = np.array((Wm, Hm)).T
             for i in range(0,len(kp)):
                 if np.round(kp[i].pt) in maskpoint:
@@ -55,8 +55,8 @@ class targetModel():
                 self.angle.append(kp[i].angle)
                 self.scale.append(kp[i].size)
 
-        if mask.all() != None and imgCenter == False:
-            centerW, centerH = np.argwhere(mask == 255).sum(0)/(mask == 255).sum()
+        if self.targetMask is not None and imgCenter == False:
+            centerW, centerH = np.argwhere(self.targetMask == 255).sum(0)/(self.targetMask == 255).sum()
             centerW = int(round(centerW))
             centerH = int(round(centerH))
         else:
@@ -77,7 +77,7 @@ mask = cv2.imread('mask.png')
 mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
 
 model = targetModel(5)
-model.createModel(img, mask, False)
+model.createModel(img, mask, True)
 
 print("point")
 print(model.pt)
