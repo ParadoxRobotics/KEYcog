@@ -1,2 +1,6 @@
 # ORBcog
-ORB based object matching using probabilistic model from Li Yang Ku paper "A Probabilistic Model for Object Matching"
+ORB based object matching using method proposed by Li yang Ku and David G. Lowe.
+
+reference:
+- David G. Lowe. Object Recognition from Local Scale-Invariant Features, ICCV 1999.
+- Li yang Ku. A Probabilistic Model for Object Matching.
