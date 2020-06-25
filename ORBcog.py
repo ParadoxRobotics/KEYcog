@@ -5,6 +5,7 @@ import numpy as np
 import cv2
 from matplotlib import pyplot as plt
 from matplotlib import pyplot
+from scipy.spatial import Delaunay, delaunay_plot_2d
 
 # create base model
 class targetModel():
@@ -19,11 +20,12 @@ class targetModel():
         self.pt = [] # keypoint [x,y] -> [W,H]
         self.angle = [] # angle of the keypoint
         self.scale = [] # size response of the keypoint (scale)
+        self.response = [] # response from the descriptor
         self.angleCenter = [] # angle between the ORB keypoint and the center of the image
         self.scaleCenter = [] # length of the line between the ORB point and the middle point devide by the scale of the ORB descriptor
         self.descriptor = None
 
-    def createModel(self, img, mask):
+    def createModel(self, img, mask, imgCenter):
         # store target image and mask
         self.targetImage = img
         self.targetMask = mask
@@ -36,7 +38,7 @@ class targetModel():
         plt.imshow(kp_img)
         plt.show()
 
-        if mask != None:
+        if mask.all() != None:
             # get point, angle and size from keypoints in the binary mask
             Hm, Wm = np.where(mask == 255)
             maskpoint = np.array((Wm, Hm)).T
@@ -45,6 +47,7 @@ class targetModel():
                     self.pt.append(kp[i].pt)
                     self.angle.append(kp[i].angle)
                     self.scale.append(kp[i].size)
+                    self.response.append(kp[i].response)
         else:
             # get point, angle and size from keypoints
             for i in range(0,len(kp)):
@@ -52,9 +55,14 @@ class targetModel():
                 self.angle.append(kp[i].angle)
                 self.scale.append(kp[i].size)
 
-        # compute the midle of the cropped image
-        centerH = int(self.targetImage.shape[1]/2)
-        centerW = int(self.targetImage.shape[0]/2)
+        if mask.all() != None and imgCenter == False:
+            centerW, centerH = np.argwhere(mask == 255).sum(0)/(mask == 255).sum()
+            centerW = int(round(centerW))
+            centerH = int(round(centerH))
+        else:
+            # compute the midle of the cropped image
+            centerH = int(round(self.targetImage.shape[1]/2))
+            centerW = int(round(self.targetImage.shape[0]/2))
         # for every ORB point
         for i in range(0, len(self.pt)):
             # store the angle of the line between the ORB point and the middle point
@@ -63,3 +71,25 @@ class targetModel():
             self.scaleCenter.append(np.sqrt((centerW-self.pt[i][0])**2+(centerH-self.pt[i][1])**2)/self.scale[i])
 
 
+img = cv2.imread('target.jpg')
+img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+mask = cv2.imread('mask.png')
+mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+
+model = targetModel(5)
+model.createModel(img, mask, False)
+
+print("point")
+print(model.pt)
+print("scale")
+print(model.scale)
+print("angle")
+print(model.angle)
+print("angle to center")
+print(model.angleCenter)
+print("scale to center")
+print(model.scaleCenter)
+
+tri = Delaunay(model.pt)
+_ = delaunay_plot_2d(tri)
+plt.show()
