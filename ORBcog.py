@@ -20,7 +20,6 @@ class targetModel():
         self.pt = [] # keypoint [x,y] -> [W,H]
         self.angle = [] # angle of the keypoint
         self.scale = [] # size response of the keypoint (scale)
-        self.response = [] # response from the descriptor
         self.angleCenter = [] # angle between the ORB keypoint and the center of the image
         self.scaleCenter = [] # length of the line between the ORB point and the middle point devide by the scale of the ORB descriptor
         self.descriptor = None
@@ -48,7 +47,6 @@ class targetModel():
                     self.pt.append(kp[i].pt)
                     self.angle.append(-kp[i].angle*np.pi/180)
                     self.scale.append(kp[i].size)
-                    self.response.append(kp[i].response)
         else:
             # get point, angle and size from keypoints
             for i in range(0,len(kp)):
@@ -71,7 +69,7 @@ class targetModel():
             # store the length of the line between the ORB point and the middle point devide by the scale of the ORB descriptor
             self.scaleCenter.append(np.sqrt((centerW-self.pt[i][0])**2+(centerH-self.pt[i][1])**2)/self.scale[i])
 
-# match model with current image using KNN matching and Best bin first method 
+# match model with current image using KNN matching and generalized hough transform
 def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
     # create ORB descriptor/detector and BF feature matcher
     orb = cv2.ORB_create(nfeatures=nbPointMax)
@@ -86,14 +84,12 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
     curPt = []
     curAngle = []
     curScale  = []
-    curResponse = []
     for i in range(0,len(kp)):
-        self.pt.append(kp[i].pt)
-        self.angle.append(-kp[i].angle*np.pi/180)
-        self.scale.append(kp[i].size)
-        self.response.append(kp[i].response)
+        curPt.append(kp[i].pt)
+        curAngle.append(-kp[i].angle*np.pi/180)
+        curScale.append(kp[i].size)
     # using BF compute match
-    matches = matcher.knnMatch(queryDescriptors=des, trainDescriptors=targetModel.des, k=2)
+    matches = matcher.knnMatch(queryDescriptors=targetModel.descriptor, trainDescriptors=des, k=2)
     # filter match using Lowe's method
     goodMatch = []
     goodMatchPlot = [] # only for plotting
@@ -101,29 +97,87 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
         if m.distance < LoweCoeff*n.distance:
             goodMatch.append(m)
             goodMatchPlot.append([m])
-    # set the location bin size to 0.25 the image model max size
-    maxLoc = targetModel.maxSize*0.25
 
+    # get ref and cur point, angle and scale
+    refPt = np.float32([model.pt[m.queryIdx] for m in goodMatch])
+    curPt = np.float32([curPt[m.trainIdx] for m in goodMatch])
+    refAngle = np.float32([model.angle[m.queryIdx] for m in goodMatch])
+    curAngle = np.float32([curAngle[m.trainIdx] for m in goodMatch])
+    refScale = np.float32([model.scale[m.queryIdx] for m in goodMatch])
+    curScale = np.float32([curScale[m.trainIdx] for m in goodMatch])
+    # get model parameter for the good match
+    refAngleCenter = np.float32([model.angleCenter[m.queryIdx] for m in goodMatch])
+    refScaleCenter = np.float32([model.scaleCenter[m.queryIdx] for m in goodMatch])
+
+    # location of the search space to 1/4 of the image model max size
+    LocationBinSize = targetModel.maxSize*0.25
+    # set orientation bin to 12
+    nbAngleBin = 12
+    # set scale bin to 10
+    nbScaleBin = 10
+    # compute location in W axis
+    nbLocationW = int(np.round(currentImg.shape[1]*2/LocationBinSize))
+    # compute location in H axis
+    nbLocationH = int(np.round(currentImg.shape[0]*2/LocationBinSize))
+    # orientation bin (rad)
+    AngleBinSize = 2*np.pi/nbAngleBin
+
+    # init consensus grid (4D)
+    vote = np.zeros((nbAngleBin, nbScaleBin, nbLocationW, nbLocationH))
+    # init match map (ORB index) -> [nbAngleBin, nbScaleBin, nbLocationW, nbLocationH]
+    voteIdx = [[],[],[],[],[]]
+
+    # for every match pair
+    for i in range(0,len(goodMatch)):
+        # calculate the proposed target point, angle and scale
+        angleVal = curAngle[i] - refAngle[i] + 2*np.pi
+
+        scaleVal = curScale[i] / refScale[i]
+        ptWVal = curPt[i][0] + np.cos(curAngle[i]) + refAngleCenter[i]*curScale[i]*refScaleCenter[i]
+        ptHVal = curPt[i][1] + np.sin(curAngle[i]) + refAngleCenter[i]*curScale[i]*refScaleCenter[i]
+        # find the bin
+        angleBin = np.mod(np.round(angleVal/AngleBinSize), nbAngleBin)+1
+        scaleBin = np.round(np.log2(scaleVal)+nbScaleBin/2)
+        ptWBin = np.ceil(ptWVal/LocationBinSize)
+        ptHBin = np.ceil(ptHVal/LocationBinSize)
+
+        # compute hough voting
+        for a in range(0,2): # angle
+            for s in range(0,2): # scale
+                for w in range(0,2): # W
+                    for h in range(0,21): # H
+                        # vote +1
+                        vote[int(np.mod(angleBin+a,nbAngleBin)),
+                        int(np.mod(scaleBin+s,nbScaleBin)),
+                        int(np.mod(ptWBin+w,nbLocationW)),
+                        int(np.mod(ptHBin+h,nbLocationH))] = vote[int(np.mod(angleBin+a,nbAngleBin)),
+                                                             int(np.mod(scaleBin+s,nbScaleBin)),
+                                                             int(np.mod(ptWBin+w,nbLocationW)),
+                                                             int(np.mod(ptHBin+h,nbLocationH))]+1
+                        # store the vote vote
+                        voteIdx[0].append(int(np.mod(angleBin+a,nbAngleBin)))
+                        voteIdx[1].append(int(np.mod(scaleBin+s,nbScaleBin)))
+                        voteIdx[2].append(int(np.mod(ptWBin+w,nbLocationW)))
+                        voteIdx[3].append(int(np.mod(ptHBin+h,nbLocationH)))
+                        voteIdx[4].append(i)
+
+    # sort the maximum vote in the hough vote
+    maxVoteId = np.argsort(vote.flatten())
+    sortMaxVote = np.sort(vote.flatten())
+
+    # refine result
+    nbCluster = len(np.argwhere(sortMaxVote > 2)) # cluster with more than 2 vote
+    for i in range(0, nbCluster):
+        houghMatch = voteIdx[maxVoteId[i]]
+        A = []
+        B = []
 
 img = cv2.imread('target.jpg')
 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 mask = cv2.imread('mask.png')
 mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
 
-model = targetModel(nbPointMax=10)
+model = targetModel(nbPointMax=50)
 model.createModel(img=img, mask=mask, imgCenter=True)
 
-
-
-print("point")
-print(model.pt)
-print("scale")
-print(model.scale)
-print("angle")
-print(model.angle)
-print("angle to center")
-print(model.angleCenter)
-print("scale to center")
-print(model.scaleCenter)
-
-matchModel(targetModel=None, currentImg=img, nbPointMax=10, LoweCoeff=0.70)
+matchModel(targetModel=model, currentImg=img, nbPointMax=100, LoweCoeff=0.70)
