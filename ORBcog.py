@@ -98,6 +98,8 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
             goodMatch.append(m)
             goodMatchPlot.append([m])
 
+    print(len(goodMatch))
+
     # get ref and cur point, angle and scale
     refPt = np.float32([model.pt[m.queryIdx] for m in goodMatch])
     curPt = np.float32([curPt[m.trainIdx] for m in goodMatch])
@@ -125,7 +127,7 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
     # init consensus grid (4D)
     vote = np.zeros((nbAngleBin, nbScaleBin, nbLocationW, nbLocationH))
     # init match map (ORB index) -> [nbAngleBin, nbScaleBin, nbLocationW, nbLocationH]
-    voteIdx = [[],[],[],[],[]]
+    voteIdx = [[],[],[],[]]
 
     # for every match pair
     for i in range(0,len(goodMatch)):
@@ -155,29 +157,30 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
                                                              int(np.mod(ptWBin+w,nbLocationW)),
                                                              int(np.mod(ptHBin+h,nbLocationH))]+1
                         # store the vote vote
-                        voteIdx[0].append(int(np.mod(angleBin+a,nbAngleBin)))
-                        voteIdx[1].append(int(np.mod(scaleBin+s,nbScaleBin)))
-                        voteIdx[2].append(int(np.mod(ptWBin+w,nbLocationW)))
-                        voteIdx[3].append(int(np.mod(ptHBin+h,nbLocationH)))
-                        voteIdx[4].append(i)
+                        voteIdx[0].append(((int(np.mod(angleBin+a,nbAngleBin))), i))
+                        voteIdx[1].append(((int(np.mod(scaleBin+s,nbScaleBin))), i))
+                        voteIdx[2].append(((int(np.mod(ptWBin+w,nbLocationW))), i))
+                        voteIdx[3].append(((int(np.mod(ptHBin+h,nbLocationH))), i))
 
+"""
     # sort the maximum vote in the hough vote
     maxVoteId = np.argsort(vote.flatten())
     sortMaxVote = np.sort(vote.flatten())
-
     # refine result
     nbCluster = len(np.argwhere(sortMaxVote > 2)) # cluster with more than 2 vote
     for i in range(0, nbCluster):
         houghMatch = voteIdx[maxVoteId[i]]
         A = []
         B = []
+"""
 
-img = cv2.imread('target.jpg')
-img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-mask = cv2.imread('mask.png')
-mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+target = cv2.imread('target.jpg')
+target = cv2.resize(target,(640,480))
+target = cv2.cvtColor(target, cv2.COLOR_BGR2RGB)
+test = cv2.imread('test.jpg')
+test = cv2.cvtColor(test, cv2.COLOR_BGR2RGB)
 
-model = targetModel(nbPointMax=50)
-model.createModel(img=img, mask=mask, imgCenter=True)
+model = targetModel(nbPointMax=100)
+model.createModel(img=target, mask=None, imgCenter=True)
 
-matchModel(targetModel=model, currentImg=img, nbPointMax=100, LoweCoeff=0.70)
+matchModel(targetModel=model, currentImg=test, nbPointMax=500, LoweCoeff=0.70)
