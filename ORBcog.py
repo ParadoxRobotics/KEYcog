@@ -98,7 +98,7 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
             goodMatch.append(m)
             goodMatchPlot.append([m])
 
-    print(len(goodMatch))
+    print(len(goodMatchPlot))
 
     # get ref and cur point, angle and scale
     refPt = np.float32([model.pt[m.queryIdx] for m in goodMatch])
@@ -110,6 +110,11 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
     # get model parameter for the good match
     refAngleCenter = np.float32([model.angleCenter[m.queryIdx] for m in goodMatch])
     refScaleCenter = np.float32([model.scaleCenter[m.queryIdx] for m in goodMatch])
+
+    print("reference")
+    print(refPt)
+    print("current")
+    print(curPt)
 
     # location of the search space to 1/4 of the image model max size
     LocationBinSize = targetModel.maxSize*0.25
@@ -127,7 +132,7 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
     # init consensus grid (4D)
     vote = np.zeros((nbAngleBin, nbScaleBin, nbLocationW, nbLocationH))
     # init match map (ORB index) -> [nbAngleBin, nbScaleBin, nbLocationW, nbLocationH]
-    voteIdx = [[],[],[],[]]
+    voteIdx = [[[[[] for w in range(nbLocationH)] for v in range(nbLocationW)] for j in range(nbScaleBin)] for i in range(nbAngleBin)]
 
     # for every match pair
     for i in range(0,len(goodMatch)):
@@ -156,11 +161,12 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
                                                              int(np.mod(scaleBin+s,nbScaleBin)),
                                                              int(np.mod(ptWBin+w,nbLocationW)),
                                                              int(np.mod(ptHBin+h,nbLocationH))]+1
-                        # store the vote vote
-                        voteIdx[0].append(((int(np.mod(angleBin+a,nbAngleBin))), i))
-                        voteIdx[1].append(((int(np.mod(scaleBin+s,nbScaleBin))), i))
-                        voteIdx[2].append(((int(np.mod(ptWBin+w,nbLocationW))), i))
-                        voteIdx[3].append(((int(np.mod(ptHBin+h,nbLocationH))), i))
+                        # store the vote index
+                        voteIdx[int(np.mod(angleBin+a,nbAngleBin))][int(np.mod(scaleBin+s,nbScaleBin))][int(np.mod(ptWBin+w,nbLocationW))][int(np.mod(ptHBin+h,nbLocationH))].append(i)
+
+
+        print(voteIdx)
+        print(vote)
 
 """
     # sort the maximum vote in the hough vote
