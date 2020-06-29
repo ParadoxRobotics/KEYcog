@@ -98,7 +98,7 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
             goodMatch.append(m)
             goodMatchPlot.append([m])
 
-    print(len(goodMatchPlot))
+    print("number of match =" , len(goodMatchPlot))
 
     # get ref and cur point, angle and scale
     refPt = np.float32([model.pt[m.queryIdx] for m in goodMatch])
@@ -111,9 +111,9 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
     refAngleCenter = np.float32([model.angleCenter[m.queryIdx] for m in goodMatch])
     refScaleCenter = np.float32([model.scaleCenter[m.queryIdx] for m in goodMatch])
 
-    print("reference")
+    print("reference :")
     print(refPt)
-    print("current")
+    print("current :")
     print(curPt)
 
     # location of the search space to 1/4 of the image model max size
@@ -132,8 +132,7 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
     # init consensus grid (4D)
     vote = np.zeros((nbAngleBin, nbScaleBin, nbLocationW, nbLocationH))
     # init match map (ORB index) -> [nbAngleBin, nbScaleBin, nbLocationW, nbLocationH]
-    voteIdx = [[[[[] for w in range(nbLocationH)] for v in range(nbLocationW)] for j in range(nbScaleBin)] for i in range(nbAngleBin)]
-
+    voteIdx = []
     # for every match pair
     for i in range(0,len(goodMatch)):
         # calculate the proposed target point, angle and scale
@@ -152,7 +151,7 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
         for a in range(0,2): # angle
             for s in range(0,2): # scale
                 for w in range(0,2): # W
-                    for h in range(0,21): # H
+                    for h in range(0,2): # H
                         # vote +1
                         vote[int(np.mod(angleBin+a,nbAngleBin)),
                         int(np.mod(scaleBin+s,nbScaleBin)),
@@ -162,23 +161,29 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
                                                              int(np.mod(ptWBin+w,nbLocationW)),
                                                              int(np.mod(ptHBin+h,nbLocationH))]+1
                         # store the vote index
-                        voteIdx[int(np.mod(angleBin+a,nbAngleBin))][int(np.mod(scaleBin+s,nbScaleBin))][int(np.mod(ptWBin+w,nbLocationW))][int(np.mod(ptHBin+h,nbLocationH))].append(i)
+                        id = np.ravel_multi_index((int(np.mod(angleBin+a,nbAngleBin)),int(np.mod(scaleBin+s,nbScaleBin)),int(np.mod(ptWBin+w,nbLocationW)),int(np.mod(ptHBin+h,nbLocationH))), dims=(nbAngleBin, nbScaleBin, nbLocationW, nbLocationH), order='C')
+                        voteIdx.append((id, i))
 
-
-        print(voteIdx)
-        print(vote)
-
-"""
     # sort the maximum vote in the hough vote
     maxVoteId = np.argsort(vote.flatten())
+    maxVoteId = maxVoteId[::-1]
     sortMaxVote = np.sort(vote.flatten())
+    sortMaxVote = sortMaxVote[::-1]
+    # trasform vote id into a dict
+    voteIdx = dict(voteIdx)
     # refine result
     nbCluster = len(np.argwhere(sortMaxVote > 2)) # cluster with more than 2 vote
+    print(nbCluster)
+    # for every cluster compute
     for i in range(0, nbCluster):
+        # good index in the hough space projected in the match space
         houghMatch = voteIdx[maxVoteId[i]]
-        A = []
-        B = []
-"""
+        # init matrix for pose estimation (Ax = B)
+        #MA = np.array()
+        #MB = np.array()
+        #for j in range(o, len(sortMaxVote))
+
+        #print(houghMatch)
 
 target = cv2.imread('target.jpg')
 target = cv2.resize(target,(640,480))
@@ -186,7 +191,7 @@ target = cv2.cvtColor(target, cv2.COLOR_BGR2RGB)
 test = cv2.imread('test.jpg')
 test = cv2.cvtColor(test, cv2.COLOR_BGR2RGB)
 
-model = targetModel(nbPointMax=100)
+model = targetModel(nbPointMax=1000)
 model.createModel(img=target, mask=None, imgCenter=True)
 
-matchModel(targetModel=model, currentImg=test, nbPointMax=500, LoweCoeff=0.70)
+matchModel(targetModel=model, currentImg=test, nbPointMax=1000, LoweCoeff=0.70)
