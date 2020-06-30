@@ -194,8 +194,7 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
                 A = np.concatenate((A, CA))
                 B = np.concatenate((B, CB))
             # compute translation and rotation
-    UV = A/B
-    print(UV.shape)
+            UV = A/B
 
 
 target = cv2.imread('target.jpg')
