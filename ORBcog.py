@@ -185,6 +185,17 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
         for j in range(0, int(sortMaxVote[i])):
             testPt = curPt[houghMatch]
             modelPt = refPt[houghMatch]
+            # create A and B matrix given the current point
+            A = np.array([[modelPt[0,0],modelPt[0,1],0,0,1,0],[0,0,modelPt[0,0],modelPt[0,1],0,1]])
+            B = np.array([[testPt[0,0]],[testPt[0,1]]])
+            for mt in range(1, modelPt.shape[0]):
+                CA = np.array([[modelPt[i,0],modelPt[i,1],0,0,1,0],[0,0,modelPt[i,0],modelPt[i,1],0,1]])
+                CB = np.array([[testPt[i,0]],[testPt[i,1]]])
+                A = np.concatenate((A, CA))
+                B = np.concatenate((B, CB))
+            # compute translation and rotation
+    UV = A/B
+    print(UV.shape)
 
 
 target = cv2.imread('target.jpg')
