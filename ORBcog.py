@@ -5,6 +5,14 @@ import numpy as np
 import cv2
 from matplotlib import pyplot as plt
 from matplotlib import pyplot
+import itertools
+
+# flatten a nD nested list
+def flatten(l):
+    try:
+        return flatten(l[0]) + (flatten(l[1:]) if len(l) > 1 else []) if type(l) is list else [l]
+    except IndexError:
+        return []
 
 # create base model
 class targetModel():
@@ -46,7 +54,7 @@ class targetModel():
                 if np.round(kp[i].pt) in maskpoint:
                     self.pt.append(kp[i].pt)
                     self.angle.append(-kp[i].angle*np.pi/180)
-                    self.scale.append(kp[i].size)
+                    self.scale.list_of_listsappend(kp[i].size)
         else:
             # get point, angle and size from keypoints
             for i in range(0,len(kp)):
@@ -132,15 +140,14 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
     # init consensus grid (4D)
     vote = np.zeros((nbAngleBin, nbScaleBin, nbLocationW, nbLocationH))
     # init match map (ORB index) -> [nbAngleBin, nbScaleBin, nbLocationW, nbLocationH]
-    voteIdx = []
+    voteIdx = [[[[[] for w in range(nbLocationH)] for v in range(nbLocationW)] for j in range(nbScaleBin)] for i in range(nbAngleBin)]
     # for every match pair
     for i in range(0,len(goodMatch)):
         # calculate the proposed target point, angle and scale
         angleVal = curAngle[i] - refAngle[i] + 2*np.pi
-
         scaleVal = curScale[i] / refScale[i]
-        ptWVal = curPt[i][0] + np.cos(curAngle[i]) + refAngleCenter[i]*curScale[i]*refScaleCenter[i]
-        ptHVal = curPt[i][1] + np.sin(curAngle[i]) + refAngleCenter[i]*curScale[i]*refScaleCenter[i]
+        ptWVal = curPt[i][0] + np.cos(curAngle[i] + refAngleCenter[i])*curScale[i]*refScaleCenter[i]
+        ptHVal = curPt[i][1] + np.sin(curAngle[i] + refAngleCenter[i])*curScale[i]*refScaleCenter[i]
         # find the bin
         angleBin = np.mod(np.round(angleVal/AngleBinSize), nbAngleBin)+1
         scaleBin = np.round(np.log2(scaleVal)+nbScaleBin/2)
@@ -161,29 +168,24 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
                                                              int(np.mod(ptWBin+w,nbLocationW)),
                                                              int(np.mod(ptHBin+h,nbLocationH))]+1
                         # store the vote index
-                        id = np.ravel_multi_index((int(np.mod(angleBin+a,nbAngleBin)),int(np.mod(scaleBin+s,nbScaleBin)),int(np.mod(ptWBin+w,nbLocationW)),int(np.mod(ptHBin+h,nbLocationH))), dims=(nbAngleBin, nbScaleBin, nbLocationW, nbLocationH), order='C')
-                        voteIdx.append((id, i))
+                        voteIdx[int(np.mod(angleBin+a,nbAngleBin))][int(np.mod(scaleBin+s,nbScaleBin))][int(np.mod(ptWBin+w,nbLocationW))][int(np.mod(ptHBin+h,nbLocationH))].append(i)
 
-    # sort the maximum vote in the hough vote
-    maxVoteId = np.argsort(vote.flatten())
-    maxVoteId = maxVoteId[::-1]
+    # sort the maximum vote in the hough vote (axis=0)
+    maxVoteId = np.unravel_index(np.argsort(vote, axis=None), vote.shape)
+    maxVoteId = maxVoteId[0][::-1]
     sortMaxVote = np.sort(vote.flatten())
     sortMaxVote = sortMaxVote[::-1]
-    # trasform vote id into a dict
-    voteIdx = dict(voteIdx)
     # refine result
-    nbCluster = len(np.argwhere(sortMaxVote > 2)) # cluster with more than 2 vote
-    print(nbCluster)
-    # for every cluster compute
+    nbCluster = len(np.argwhere(sortMaxVote > 2)) # cluster with more than 2 votes
+    # for every cluster compute the houghMatch
     for i in range(0, nbCluster):
         # good index in the hough space projected in the match space
-        houghMatch = voteIdx[maxVoteId[i]]
-        # init matrix for pose estimation (Ax = B)
-        #MA = np.array()
-        #MB = np.array()
-        #for j in range(o, len(sortMaxVote))
+        houghMatch = flatten(voteIdx[maxVoteId[i]])
+        # compute matrix A and B for solving the linear pose estimation (Ax = B)
+        for j in range(0, int(sortMaxVote[i])):
+            testPt = curPt[houghMatch]
+            modelPt = refPt[houghMatch]
 
-        #print(houghMatch)
 
 target = cv2.imread('target.jpg')
 target = cv2.resize(target,(640,480))
