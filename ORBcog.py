@@ -203,7 +203,7 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
         UV = np.dot(AT,BT)
         R = np.reshape(UV[0:4,0],(2,2))
         T = np.reshape(UV[4:6,0],(2,1))
-        """
+
         # refine match
         filterMatch = []
         for j in range(0, int(sortMaxVote[i])):
@@ -219,24 +219,30 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
             # check position
             for k in range(0, modelPt.shape[0]):
                 # check position
-                if (norm(np.reshape(testPt[k],(2,1))-(R*np.reshape(modelPt[k],(2,1))+T)) > 0.2*model.maxSize):
+                """
+                if (norm(np.reshape(testPt[k],(2,1)) - (np.dot(R, np.reshape(modelPt[k],(2,1)))+T)) > 0.2*model.maxSize):
+                    print("pk", j, modelPt.shape[0])
                     continue
+                """
                 # check angle
                 modelAngleVec = np.dot(R, np.array([[np.cos(modelAngle[k])],[np.sin(modelAngle[k])]]))
-                if np.mod(np.abs(testPt[k] - np.arctan2(modelAngleVec[1], modelAngleVec[0])), 2*np.pi).any() > np.pi/12:
+                if np.mod(np.abs(testAngle[k] - np.arctan2(modelAngleVec[1], modelAngleVec[0])), 2*np.pi).any() > np.pi/12:
+                    print("pk", j, modelPt.shape[0])
                     continue
+                """
                 # check scale
                 modelScaleRatio = np.sqrt(norm(R*np.array([[1],[0]]))*norm(R*np.array([[0],[1]])))
-                if (testScale[k]/modelScale[k])/modelScaleRatio > 2**0.5 or (testScale[k]/modelScale[k])/modelScaleRatio < 2**-0.5:
+                if (testScale[k]/modelScale[k])/modelScaleRatio > np.sqrt(2) or (testScale[k]/modelScale[k])/modelScaleRatio < -np.sqrt(2):
                     continue
+                """
                 # append if bad match
                 filterMatch.append(j)
 
         # if less than 3 non-matc
-        print(filterMatch)
-    """
+        #print(filterMatch)
+
 target = cv2.imread('target.jpg')
-target = cv2.resize(target,(640,480))
+#target = cv2.resize(target,(640,480))
 target = cv2.cvtColor(target, cv2.COLOR_BGR2RGB)
 test = cv2.imread('test.jpg')
 test = cv2.cvtColor(test, cv2.COLOR_BGR2RGB)
