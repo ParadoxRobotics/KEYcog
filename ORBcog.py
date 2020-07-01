@@ -2,10 +2,10 @@
 # This code is based Li Yang Ku SURF object matching
 
 import numpy as np
+from scipy.linalg import lstsq, norm, inv
 import cv2
 from matplotlib import pyplot as plt
 from matplotlib import pyplot
-import itertools
 
 # flatten a nD nested list
 def flatten(l):
@@ -54,7 +54,7 @@ class targetModel():
                 if np.round(kp[i].pt) in maskpoint:
                     self.pt.append(kp[i].pt)
                     self.angle.append(-kp[i].angle*np.pi/180)
-                    self.scale.list_of_listsappend(kp[i].size)
+                    self.scale.append(kp[i].size)
         else:
             # get point, angle and size from keypoints
             for i in range(0,len(kp)):
@@ -170,17 +170,21 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
                         # store the vote index
                         voteIdx[int(np.mod(angleBin+a,nbAngleBin))][int(np.mod(scaleBin+s,nbScaleBin))][int(np.mod(ptWBin+w,nbLocationW))][int(np.mod(ptHBin+h,nbLocationH))].append(i)
 
+    # init obj counter
+    objFinder = 0
     # sort the maximum vote in the hough vote (axis=0)
     maxVoteId = np.unravel_index(np.argsort(vote, axis=None), vote.shape)
     maxVoteId = maxVoteId[0][::-1]
     sortMaxVote = np.sort(vote.flatten())
     sortMaxVote = sortMaxVote[::-1]
+
     # refine result
     nbCluster = len(np.argwhere(sortMaxVote > 2)) # cluster with more than 2 votes
     # for every cluster compute the houghMatch
     for i in range(0, nbCluster):
         # good index in the hough space projected in the match space
         houghMatch = flatten(voteIdx[maxVoteId[i]])
+        houghMatch = list(dict.fromkeys(houghMatch)) # filter out the same index
         # compute matrix A and B for solving the linear pose estimation (Ax = B)
         for j in range(0, int(sortMaxVote[i])):
             testPt = curPt[houghMatch]
@@ -189,21 +193,55 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
             A = np.array([[modelPt[0,0],modelPt[0,1],0,0,1,0],[0,0,modelPt[0,0],modelPt[0,1],0,1]])
             B = np.array([[testPt[0,0]],[testPt[0,1]]])
             for mt in range(1, modelPt.shape[0]):
-                CA = np.array([[modelPt[i,0],modelPt[i,1],0,0,1,0],[0,0,modelPt[i,0],modelPt[i,1],0,1]])
-                CB = np.array([[testPt[i,0]],[testPt[i,1]]])
+                CA = np.array([[modelPt[mt,0],modelPt[mt,1],0,0,1,0],[0,0,modelPt[mt,0],modelPt[mt,1],0,1]])
+                CB = np.array([[testPt[mt,0]],[testPt[mt,1]]])
                 A = np.concatenate((A, CA))
                 B = np.concatenate((B, CB))
-            # compute translation and rotation
-            UV = A/B
+            # compute translation and rotation using LSQ (degenerate matrix...)
+        AT = inv(np.dot(A.T, A))
+        BT = np.dot(A.T,B)
+        UV = np.dot(AT,BT)
+        R = np.reshape(UV[0:4,0],(2,2))
+        T = np.reshape(UV[4:6,0],(2,1))
+        """
+        # refine match
+        filterMatch = []
+        for j in range(0, int(sortMaxVote[i])):
+            # position
+            testPt = curPt[houghMatch]
+            modelPt = refPt[houghMatch]
+            # angle
+            testAngle = curAngle[houghMatch]
+            modelAngle = refAngle[houghMatch]
+            # scale
+            testScale = curScale[houghMatch]
+            modelScale = refScale[houghMatch]
+            # check position
+            for k in range(0, modelPt.shape[0]):
+                # check position
+                if (norm(np.reshape(testPt[k],(2,1))-(R*np.reshape(modelPt[k],(2,1))+T)) > 0.2*model.maxSize):
+                    continue
+                # check angle
+                modelAngleVec = np.dot(R, np.array([[np.cos(modelAngle[k])],[np.sin(modelAngle[k])]]))
+                if np.mod(np.abs(testPt[k] - np.arctan2(modelAngleVec[1], modelAngleVec[0])), 2*np.pi).any() > np.pi/12:
+                    continue
+                # check scale
+                modelScaleRatio = np.sqrt(norm(R*np.array([[1],[0]]))*norm(R*np.array([[0],[1]])))
+                if (testScale[k]/modelScale[k])/modelScaleRatio > 2**0.5 or (testScale[k]/modelScale[k])/modelScaleRatio < 2**-0.5:
+                    continue
+                # append if bad match
+                filterMatch.append(j)
 
-
+        # if less than 3 non-matc
+        print(filterMatch)
+    """
 target = cv2.imread('target.jpg')
 target = cv2.resize(target,(640,480))
 target = cv2.cvtColor(target, cv2.COLOR_BGR2RGB)
 test = cv2.imread('test.jpg')
 test = cv2.cvtColor(test, cv2.COLOR_BGR2RGB)
 
-model = targetModel(nbPointMax=1000)
+model = targetModel(nbPointMax=2000)
 model.createModel(img=target, mask=None, imgCenter=True)
 
-matchModel(targetModel=model, currentImg=test, nbPointMax=1000, LoweCoeff=0.70)
+matchModel(targetModel=model, currentImg=test, nbPointMax=2000, LoweCoeff=0.70)
