@@ -23,7 +23,7 @@ class targetModel():
         self.targetMask = None # target binary mask
         self.maxSize = None
         # image keypoint extractor
-        self.orb = cv2.ORB_create(nfeatures=nbPointMax)
+        self.orb = cv2.ORB_create(nfeatures=nbPointMax, scaleFactor=2, nlevels=8, WTA_K=2)
         # parameters for the probabilistic model
         self.pt = [] # keypoint [x,y] -> [W,H]
         self.angle = [] # angle of the keypoint
@@ -53,13 +53,13 @@ class targetModel():
             for i in range(0,len(kp)):
                 if np.round(kp[i].pt) in maskpoint:
                     self.pt.append(kp[i].pt)
-                    self.angle.append(-kp[i].angle*np.pi/180)
+                    self.angle.append(kp[i].angle*(np.pi/180))
                     self.scale.append(kp[i].size)
         else:
             # get point, angle and size from keypoints
             for i in range(0,len(kp)):
                 self.pt.append(kp[i].pt)
-                self.angle.append(-kp[i].angle*np.pi/180)
+                self.angle.append(kp[i].angle*(np.pi/180))
                 self.scale.append(kp[i].size)
 
         if self.targetMask is not None and imgCenter == False:
@@ -80,7 +80,7 @@ class targetModel():
 # match model with current image using KNN matching and generalized hough transform
 def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
     # create ORB descriptor/detector and BF feature matcher
-    orb = cv2.ORB_create(nfeatures=nbPointMax)
+    orb = cv2.ORB_create(nfeatures=nbPointMax, scaleFactor=2, nlevels=8, WTA_K=2)
     matcher = cv2.DescriptorMatcher_create("BruteForce-L1")
     # compute ORB keypoint and descriptor
     kp, des = orb.detectAndCompute(currentImg, None)
@@ -94,7 +94,7 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
     curScale  = []
     for i in range(0,len(kp)):
         curPt.append(kp[i].pt)
-        curAngle.append(-kp[i].angle*np.pi/180)
+        curAngle.append(kp[i].angle*(np.pi/180))
         curScale.append(kp[i].size)
     # using BF compute match
     matches = matcher.knnMatch(queryDescriptors=targetModel.descriptor, trainDescriptors=des, k=2)
@@ -227,7 +227,6 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
                 # check angle
                 modelAngleVec = np.dot(R, np.array([[np.cos(modelAngle[k])],[np.sin(modelAngle[k])]]))
                 if np.mod(np.abs(testAngle[k] - np.arctan2(modelAngleVec[1], modelAngleVec[0])), 2*np.pi).any() > np.pi/12:
-                    print("pk", j, modelPt.shape[0])
                     continue
                 """
                 # check scale
@@ -242,12 +241,11 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
         #print(filterMatch)
 
 target = cv2.imread('target.jpg')
-#target = cv2.resize(target,(640,480))
 target = cv2.cvtColor(target, cv2.COLOR_BGR2RGB)
 test = cv2.imread('test.jpg')
 test = cv2.cvtColor(test, cv2.COLOR_BGR2RGB)
 
-model = targetModel(nbPointMax=2000)
+model = targetModel(nbPointMax=1000)
 model.createModel(img=target, mask=None, imgCenter=True)
 
-matchModel(targetModel=model, currentImg=test, nbPointMax=2000, LoweCoeff=0.70)
+matchModel(targetModel=model, currentImg=test, nbPointMax=1000, LoweCoeff=0.80)
