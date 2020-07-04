@@ -225,17 +225,14 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
                 modelAngleVec = np.dot(R, np.array([[np.cos(modelAngle[k])],[np.sin(modelAngle[k])]]))
                 if np.mod(np.abs(testAngle[k] - np.arctan2(modelAngleVec[1,0], modelAngleVec[0,0])), 2*np.pi) > np.pi/12:
                     continue
-                """
                 # check scale
                 modelScaleRatio = np.sqrt(norm(R*np.array([[1],[0]]))*norm(R*np.array([[0],[1]])))
                 if (testScale[k]/modelScale[k])/modelScaleRatio > np.sqrt(2) or (testScale[k]/modelScale[k])/modelScaleRatio < -np.sqrt(2):
                     continue
-                """
-                # append if bad match
+                # append if good match
                 filterMatch.append(j)
 
-        # if less than 3 non-matc
-        print(filterMatch)
+
 
 target = cv2.imread('target.jpg')
 target = cv2.cvtColor(target, cv2.COLOR_BGR2RGB)
