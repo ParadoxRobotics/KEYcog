@@ -53,13 +53,13 @@ class targetModel():
             for i in range(0,len(kp)):
                 if np.round(kp[i].pt) in maskpoint:
                     self.pt.append(kp[i].pt)
-                    self.angle.append(kp[i].angle*(np.pi/180))
+                    self.angle.append(-kp[i].angle*(np.pi/180))
                     self.scale.append(kp[i].size)
         else:
             # get point, angle and size from keypoints
             for i in range(0,len(kp)):
                 self.pt.append(kp[i].pt)
-                self.angle.append(kp[i].angle*(np.pi/180))
+                self.angle.append(-kp[i].angle*(np.pi/180))
                 self.scale.append(kp[i].size)
 
         if self.targetMask is not None and imgCenter == False:
@@ -94,7 +94,7 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
     curScale  = []
     for i in range(0,len(kp)):
         curPt.append(kp[i].pt)
-        curAngle.append(kp[i].angle*(np.pi/180))
+        curAngle.append(-kp[i].angle*(np.pi/180))
         curScale.append(kp[i].size)
     # using BF compute match
     matches = matcher.knnMatch(queryDescriptors=targetModel.descriptor, trainDescriptors=des, k=2)
@@ -219,14 +219,11 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
             # check position
             for k in range(0, modelPt.shape[0]):
                 # check position
-                """
                 if (norm(np.reshape(testPt[k],(2,1)) - (np.dot(R, np.reshape(modelPt[k],(2,1)))+T)) > 0.2*model.maxSize):
-                    print("pk", j, modelPt.shape[0])
                     continue
-                """
                 # check angle
                 modelAngleVec = np.dot(R, np.array([[np.cos(modelAngle[k])],[np.sin(modelAngle[k])]]))
-                if np.mod(np.abs(testAngle[k] - np.arctan2(modelAngleVec[1], modelAngleVec[0])), 2*np.pi).any() > np.pi/12:
+                if np.mod(np.abs(testAngle[k] - np.arctan2(modelAngleVec[1,0], modelAngleVec[0,0])), 2*np.pi) > np.pi/12:
                     continue
                 """
                 # check scale
@@ -238,7 +235,7 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
                 filterMatch.append(j)
 
         # if less than 3 non-matc
-        #print(filterMatch)
+        print(filterMatch)
 
 target = cv2.imread('target.jpg')
 target = cv2.cvtColor(target, cv2.COLOR_BGR2RGB)
