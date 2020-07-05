@@ -21,7 +21,8 @@ class targetModel():
         # input
         self.targetImage = None # image to train on
         self.targetMask = None # target binary mask
-        self.maxSize = None
+        self.contour = None # contour point of the target image
+        self.maxSize = None # maximum lengh of the image
         # image keypoint extractor
         self.orb = cv2.ORB_create(nfeatures=nbPointMax, scaleFactor=2, nlevels=8, WTA_K=2)
         # parameters for the probabilistic model
@@ -32,10 +33,12 @@ class targetModel():
         self.scaleCenter = [] # length of the line between the ORB point and the middle point devide by the scale of the ORB descriptor
         self.descriptor = None
 
-    def createModel(self, img, mask, imgCenter):
-        # store target image and mask
+    def createModel(self, img, contour, mask, imgCenter):
+        # store target image, contour and mask
         self.targetImage = img
         self.targetMask = mask
+        if contour is not None:
+            self.contour = contour
         self.maxSize = np.max(self.targetImage.shape)
         # compute ORB keypoint and descriptor
         kp, des = self.orb.detectAndCompute(self.targetImage, None)
@@ -275,10 +278,12 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
 # TEST
 target = cv2.imread('target.jpg')
 target = cv2.cvtColor(target, cv2.COLOR_BGR2RGB)
+contour = cv2.imread('contour.jpg')
+contour = cv2.cvtColor(contour, cv2.COLOR_BGR2RGB)
 test = cv2.imread('test.jpg')
 test = cv2.cvtColor(test, cv2.COLOR_BGR2RGB)
 # create model
 model = targetModel(nbPointMax=1000)
-model.createModel(img=target, mask=None, imgCenter=True)
+model.createModel(img=target, contour=contour, mask=None, imgCenter=True)
 # match the model with the current image state
 matchModel(targetModel=model, currentImg=test, nbPointMax=1000, LoweCoeff=0.80)
