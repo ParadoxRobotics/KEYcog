@@ -172,6 +172,10 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
 
     # init obj counter
     objFinder = 0
+    # candidate object part
+    candidateRotation = []
+    candidateTranslation = []
+    candidateMatch = []
     # sort the maximum vote in the hough vote (axis=0)
     maxVoteId = np.unravel_index(np.argsort(vote, axis=None), vote.shape)
     maxVoteId = maxVoteId[0][::-1]
@@ -197,7 +201,7 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
                 CB = np.array([[testPt[mt,0]],[testPt[mt,1]]])
                 A = np.concatenate((A, CA))
                 B = np.concatenate((B, CB))
-            # compute translation and rotation using LSQ (degenerate matrix...)
+            # compute translation and rotation
         AT = inv(np.dot(A.T, A))
         BT = np.dot(A.T,B)
         UV = np.dot(AT,BT)
@@ -232,14 +236,49 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
                 # append if good match
                 filterMatch.append(j)
 
+        # filter out the identical index match
+        filterMatch = list(dict.fromkeys(filterMatch))
+        # number of match < 3 -> dont compute
+        if len(filterMatch) < 3:
+            print("not enough point to compute -_- ")
+            continue
+        # Recompute pose
+        testPt = curPt[houghMatch[filterMatch[0]]]
+        modelPt = refPt[houghMatch[filterMatch[0]]]
+        A = np.array([[modelPt[0],modelPt[1],0,0,1,0],[0,0,modelPt[0],modelPt[1],0,1]])
+        B = np.array([[testPt[0]],[testPt[1]]])
+        for v in range(1, len(filterMatch)):
+            testPt = curPt[houghMatch[filterMatch[v]]]
+            modelPt = refPt[houghMatch[filterMatch[v]]]
+            CA = np.array([[modelPt[0],modelPt[1],0,0,1,0],[0,0,modelPt[0],modelPt[1],0,1]])
+            CB = np.array([[testPt[0]],[testPt[1]]])
+            A = np.concatenate((A, CA))
+            B = np.concatenate((B, CB))
+        # compute translation and rotation
+        AT = inv(np.dot(A.T, A))
+        BT = np.dot(A.T,B)
+        UV = np.dot(AT,BT)
+        R = np.reshape(UV[0:4,0],(2,2))
+        T = np.reshape(UV[4:6,0],(2,1))
+        # update object part found
+        objFinder += 1
+        # update candidate rotation, translation and match
+        candidateRotation.append(R)
+        candidateTranslation.append(T)
+        candidateMatch.append([houghMatch[w] for w in filterMatch])
 
+    if objFinder == 0:
+        print("no object detected /!\ ")
+    else:
+        print("object part found !")
 
+# TEST
 target = cv2.imread('target.jpg')
 target = cv2.cvtColor(target, cv2.COLOR_BGR2RGB)
 test = cv2.imread('test.jpg')
 test = cv2.cvtColor(test, cv2.COLOR_BGR2RGB)
-
+# create model
 model = targetModel(nbPointMax=1000)
 model.createModel(img=target, mask=None, imgCenter=True)
-
+# match the model with the current image state
 matchModel(targetModel=model, currentImg=test, nbPointMax=1000, LoweCoeff=0.80)
