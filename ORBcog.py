@@ -14,6 +14,16 @@ def flatten(l):
     except IndexError:
         return []
 
+def draw_axis(img, R, t, K):
+    # unit is mm
+    rotV, _ = cv2.Rodrigues(R)
+    points = np.float32([[100, 0, 0], [0, 100, 0], [0, 0, 100], [0, 0, 0]]).reshape(-1, 3)
+    axisPoints, _ = cv2.projectPoints(points, rotV, t, K, (0, 0, 0, 0))
+    img = cv2.line(img, tuple(axisPoints[3].ravel()), tuple(axisPoints[0].ravel()), (255,0,0), 3)
+    img = cv2.line(img, tuple(axisPoints[3].ravel()), tuple(axisPoints[1].ravel()), (0,255,0), 3)
+    img = cv2.line(img, tuple(axisPoints[3].ravel()), tuple(axisPoints[2].ravel()), (0,0,255), 3)
+    return img
+
 # create base model
 class targetModel():
     def __init__(self, nbPointMax):
@@ -274,7 +284,16 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
         print("no object detected /!\ ")
     else:
         print("object part found !")
+        # compute contour in the test image
+        cur = curPt[candidateMatch[0]]
+        print(cur.shape)
+        imgC = currentImg.copy()
+        for d in range(0, cur.shape[0]):
+            print((int(cur[d,0]), int(cur[d,1])))
+            cv2.circle(imgC, (int(cur[d,0]), int(cur[d,1])), 50, (255,0,0), -1)
 
+        plt.imshow(imgC)
+        plt.show()
 # TEST
 target = cv2.imread('target.jpg')
 target = cv2.cvtColor(target, cv2.COLOR_BGR2RGB)
