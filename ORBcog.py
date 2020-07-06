@@ -94,7 +94,7 @@ class targetModel():
 def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
     # create ORB descriptor/detector and BF feature matcher
     orb = cv2.ORB_create(nfeatures=nbPointMax, scaleFactor=2, nlevels=8, WTA_K=2)
-    matcher = cv2.DescriptorMatcher_create("BruteForce-L1")
+    matcher = cv2.DescriptorMatcher_create("BruteForce")
     # compute ORB keypoint and descriptor
     kp, des = orb.detectAndCompute(currentImg, None)
     # draw keypoint
@@ -131,6 +131,16 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
     # get model parameter for the good match
     refAngleCenter = np.float32([model.angleCenter[m.queryIdx] for m in goodMatch])
     refScaleCenter = np.float32([model.scaleCenter[m.queryIdx] for m in goodMatch])
+
+    imgRef = model.targetImage.copy()
+    imgCur = currentImg.copy()
+    for g in range(refPt.shape[0]):
+        cv2.circle(imgRef, (int(refPt[g,0]), int(refPt[g,1])), 10, (255,0,0), thickness=-1)
+        cv2.circle(imgCur, (int(curPt[g,0]), int(curPt[g,1])), 10, (255,0,0), thickness=-1)
+    plt.imshow(imgRef)
+    plt.show()
+    plt.imshow(imgCur)
+    plt.show()
 
     print("reference :")
     print(refPt)
@@ -284,16 +294,20 @@ def matchModel(targetModel, currentImg, nbPointMax, LoweCoeff):
         print("no object detected /!\ ")
     else:
         print("object part found !")
-        # compute contour in the test image
-        cur = curPt[candidateMatch[0]]
-        print(cur.shape)
-        imgC = currentImg.copy()
-        for d in range(0, cur.shape[0]):
-            print((int(cur[d,0]), int(cur[d,1])))
-            cv2.circle(imgC, (int(cur[d,0]), int(cur[d,1])), 50, (255,0,0), -1)
+        for l in range(len(candidateMatch)):
+            # compute contour in the test image
+            cur = curPt[candidateMatch[l]]
+            ref = refPt[candidateMatch[l]]
+            imgC = currentImg.copy()
+            imgR = model.targetImage.copy()
+            for d in range(0, cur.shape[0]):
+                cv2.circle(imgR, (int(ref[d,0]), int(ref[d,1])), 10, (0,255,0), -1)
+                cv2.circle(imgC, (int(cur[d,0]), int(cur[d,1])), 10, (0,255,0), -1)
+            plt.imshow(imgR)
+            plt.show()
+            plt.imshow(imgC)
+            plt.show()
 
-        plt.imshow(imgC)
-        plt.show()
 # TEST
 target = cv2.imread('target.jpg')
 target = cv2.cvtColor(target, cv2.COLOR_BGR2RGB)
