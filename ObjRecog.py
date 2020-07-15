@@ -1,5 +1,5 @@
 # Robust, efficint and simple single objet recognition for robot application
-# use LSD python wrapper : https://github.com/xanxys/lsd-python
+# this work is based on covariant matrix descriptor and deformable template matching (DTM)
 # Author : Munch Quentin, 2020.
 
 """
@@ -13,40 +13,52 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Robust, efficint and simple single objet recognition for robot application
+# Author : Munch Quentin, 2020.
 """
 
 import numpy as np
 import cv2
-import lsd
 from matplotlib import pyplot as plt
 from matplotlib import pyplot
 
-# create object model
-class targetModel():
-    def __init__(self, ):
-        # detector class -> only for drawing
-        self.fld = cv2.ximgproc.createFastLineDetector()
-        # base input
-        self.imageTarget = None
-        self.maskTarget = None
-        # model
-        self.LSDLine = None
-        self.descriptor = None
-        self.position = None
-
-    def createModel(self, img, mask):
-        # store input data
-        self.imageTarget = img
-        if mask is not None:
-            self.maskTarget = mask
-        # compute line
-        imgLine_ = lsd.detect_line_segments(self.imageTarget.astype('float64'), scale=0.8, sigma_scale=0.6, quant=2.0, ang_th=22.5, log_eps=0.0, density_th=0.7, n_bins=1024)
-        self.LSDLine = np.reshape(imgLine_[:,0:4], (imgLine_.shape[0],1,4)).astype('float32')
-        # plot
-        plt.imshow(self.fld.drawSegments(self.imageTarget, self.LSDLine), interpolation='nearest', aspect='auto')
-        plt.show()
-
-img = cv2.imread('target.jpg', cv2.IMREAD_GRAYSCALE)
+# get image and resize it
+img = cv2.imread('target.jpg')
+img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+imgGray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 img = cv2.resize(img, (640,480))
-model = targetModel()
-model.createModel(img, None)
+# compute Hue and Saturation
+hsvImg = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+H, S, V = cv2.split(hsvImg)
+# compute gradient
+dx = cv2.Sobel(imgGray, cv2.CV_32F, 1, 0)
+dy = cv2.Sobel(imgGray, cv2.CV_32F, 0, 1)
+# convert to float
+dx = dx.astype(float)
+dy = dy.astype(float)
+# compute gradient magnitude and angle (in degree)
+mag = cv2.magnitude(dx, dy)
+# thresholding the magnitude value
+thresh = 50
+ret, magMask = cv2.threshold(mag, thresh, 255, cv2.THRESH_BINARY)
+magMask = magMask.astype(np.uint8)
+# apply the mask to the magnitude
+mag = cv2.bitwise_and(mag, mag, mask=magMask)
+# compute the angle given the thresholding magnitude mask
+angle = cv2.phase(dx, dy, angleInDegrees=True)
+angle = cv2.bitwise_and(angle, angle, mask=magMask)
+
+
+plt.imshow(imgGray)
+plt.show()
+plt.imshow(H)
+plt.show()
+plt.imshow(S)
+plt.show()
+plt.imshow(mag)
+plt.show()
+plt.imshow(angle)
+plt.show()
+
+# merge the different channel into a unified matrix F = [H, S, Mag, Ang]
+F = cv2.merge((H, S, mag, angle))
