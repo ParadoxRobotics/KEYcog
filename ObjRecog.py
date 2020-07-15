@@ -1,4 +1,4 @@
-# Robust, efficint and simple single objet recognition for robot application
+# Robust, efficient and simple single objet recognition for robot application
 # this work is based on covariant matrix descriptor and deformable template matching (DTM)
 # Author : Munch Quentin, 2020.
 
