@@ -33,9 +33,6 @@ H, S, V = cv2.split(hsvImg)
 # compute gradient
 dx = cv2.Sobel(imgGray, cv2.CV_32F, 1, 0)
 dy = cv2.Sobel(imgGray, cv2.CV_32F, 0, 1)
-# convert to float
-dx = dx.astype(float)
-dy = dy.astype(float)
 # compute gradient magnitude and angle (in degree)
 mag = cv2.magnitude(dx, dy)
 # thresholding the magnitude value
@@ -48,17 +45,8 @@ mag = cv2.bitwise_and(mag, mag, mask=magMask)
 angle = cv2.phase(dx, dy, angleInDegrees=True)
 angle = cv2.bitwise_and(angle, angle, mask=magMask)
 
-
-plt.imshow(imgGray)
-plt.show()
-plt.imshow(H)
-plt.show()
-plt.imshow(S)
-plt.show()
-plt.imshow(mag)
-plt.show()
-plt.imshow(angle)
-plt.show()
-
 # merge the different channel into a unified matrix F = [H, S, Mag, Ang]
-F = cv2.merge((H, S, mag, angle))
+F = np.concatenate((H, S, mag, angle), axis=0)
+
+# compute image integral
+sum, sqsum, tilted	= cv2.integral3(imgGray)
