@@ -46,7 +46,7 @@ angle = cv2.phase(dx, dy, angleInDegrees=True)
 angle = cv2.bitwise_and(angle, angle, mask=magMask)
 
 # merge the different channel into a unified matrix F = [H, S, Mag, Ang]
-F = np.concatenate((H, S, mag, angle), axis=0)
+F = np.dstack((H, S, mag, angle))
 
 # compute image integral
 sum, sqsum, tilted = cv2.integral3(imgGray)
