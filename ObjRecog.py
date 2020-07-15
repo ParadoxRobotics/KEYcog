@@ -49,4 +49,4 @@ angle = cv2.bitwise_and(angle, angle, mask=magMask)
 F = np.concatenate((H, S, mag, angle), axis=0)
 
 # compute image integral
-sum, sqsum, tilted	= cv2.integral3(imgGray)
+sum, sqsum, tilted = cv2.integral3(imgGray)
