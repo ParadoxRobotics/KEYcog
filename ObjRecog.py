@@ -25,8 +25,8 @@ from matplotlib import pyplot
 # get image and resize it
 img = cv2.imread('target.jpg')
 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-imgGray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 img = cv2.resize(img, (640,480))
+imgGray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 # compute Hue and Saturation
 hsvImg = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
 H, S, V = cv2.split(hsvImg)
