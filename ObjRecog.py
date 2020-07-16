@@ -22,31 +22,59 @@ import cv2
 from matplotlib import pyplot as plt
 from matplotlib import pyplot
 
+# compute the region feature RF = [Hue, Sat, magnitude, angle]
+def computeFeature(region):
+    # compute Hue and Saturation
+    hsvImg = cv2.cvtColor(region, cv2.COLOR_RGB2HSV)
+    H, S, V = cv2.split(hsvImg)
+    # compute gradient
+    dx = cv2.Sobel(cv2.cvtColor(region, cv2.COLOR_RGB2GRAY), cv2.CV_32F, 1, 0)
+    dy = cv2.Sobel(cv2.cvtColor(region, cv2.COLOR_RGB2GRAY), cv2.CV_32F, 0, 1)
+    # compute gradient magnitude and angle (in degree)
+    mag = cv2.magnitude(dx, dy)
+    # thresholding the magnitude value
+    thresh = 50
+    ret, magMask = cv2.threshold(mag, thresh, 255, cv2.THRESH_BINARY)
+    magMask = magMask.astype(np.uint8)
+    # apply the mask to the magnitude
+    mag = cv2.bitwise_and(mag, mag, mask=magMask)
+    # compute the angle given the thresholding magnitude mask
+    angle = cv2.phase(dx, dy, angleInDegrees=True)
+    angle = cv2.bitwise_and(angle, angle, mask=magMask)
+    # region feature shape:  RF = [RH, RW, nbFeature]
+    return np.dstack((H, S, mag, angle))
+
+def computeConvariance(RF):
+    # compute mean for each channel
+    featureMean = np.sum(RF,(0,1))/(RF.shape[0]*RF.shape[1])
+    # compute convariance
+    Cov = np.zeros((RF.shape[2], RF.shape[2]))
+    for i in range(RF.shape[0]):
+        for j in range(RF.shape[1]):
+            m=np.mat(RF[i,j,:]-featureMean)
+            Cov=Cov+np.dot(m.T,m)
+    return Cov/(RF.shape[0]*RF.shape[1]-1)
+
+def computeConvarianceDist(CRef, CCur):
+    return np.linalg.norm(logm(CRef) - logm(CCur), ord='fro')
+
 # get image and resize it
-img = cv2.imread('target.jpg')
+img = cv2.imread('target_.jpg')
 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 img = cv2.resize(img, (640,480))
-imgGray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-# compute Hue and Saturation
-hsvImg = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
-H, S, V = cv2.split(hsvImg)
-# compute gradient
-dx = cv2.Sobel(imgGray, cv2.CV_32F, 1, 0)
-dy = cv2.Sobel(imgGray, cv2.CV_32F, 0, 1)
-# compute gradient magnitude and angle (in degree)
-mag = cv2.magnitude(dx, dy)
-# thresholding the magnitude value
-thresh = 50
-ret, magMask = cv2.threshold(mag, thresh, 255, cv2.THRESH_BINARY)
-magMask = magMask.astype(np.uint8)
-# apply the mask to the magnitude
-mag = cv2.bitwise_and(mag, mag, mask=magMask)
-# compute the angle given the thresholding magnitude mask
-angle = cv2.phase(dx, dy, angleInDegrees=True)
-angle = cv2.bitwise_and(angle, angle, mask=magMask)
 
-# merge the different channel into a unified matrix F = [H, S, Mag, Ang]
-F = np.dstack((H, S, mag, angle))
+# get ROI
+roi = cv2.selectROI(img)
+cv2.destroyAllWindows()
+region = img[int(roi[1]):int(roi[1]+roi[3]), int(roi[0]):int(roi[0]+roi[2])]
+
+# compute feature in region
+RegionFeature = computeFeature(region)
+# compute the covariance matrix of the region feature
+RegionCovariance = computeConvariance(RegionFeature)
+
+plt.imshow(RegionCovariance)
+plt.show()
 
 # compute image integral
-sum, sqsum, tilted = cv2.integral3(imgGray)
+#imgSum, imgSqsum, imgTilted = cv2.integral3(imgGray)
