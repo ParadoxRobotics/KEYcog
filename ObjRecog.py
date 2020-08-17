@@ -84,47 +84,77 @@ def computeConvariance(Pint, Qint, roi):
             idx = idx+1
             if(i!=j):
                 covariance[j,i]=covariance[i,j]
-
     return covariance
-
-def computeConvarianceRegion(RF):
-    # compute mean for each channel
-    featureMean = np.sum(RF,(0,1))/(RF.shape[0]*RF.shape[1])
-    # compute convariance (dxd)
-    Cov = np.zeros((RF.shape[2], RF.shape[2]))
-    for i in range(RF.shape[0]):
-        for j in range(RF.shape[1]):
-            m=np.mat(RF[i,j,:]-featureMean)
-            Cov=Cov+np.dot(m.T,m)
-    return Cov/(RF.shape[0]*RF.shape[1]-1)
 
 def computeConvarianceDist(CRef, CCur):
     return norm(logm(CRef) - logm(CCur), ord='fro')
 
+
+def searchDescriptor(targetCov, targetRoi, PintTest, QintTest, nbDim):
+    # target region dimension
+    x0 = targetRoi[0]
+    y0 = targetRoi[1]
+    Wroi = targetRoi[2]
+    Hroi = targetRoi[3]
+    # Test Pint size
+    Wt = PintTest.shape[1]
+    Ht = PintTest.shape[0]
+
+    print("Target ROI size = ", Hroi, Wroi)
+    print("Test ROI size = ", Ht, Wt)
+
+    stepSize = 5
+    windowsSizeH = 30
+    windowsSizeW = 30
+    for H in range(0, Ht-stepSize, stepSize):
+        for W in range(0, Wt-stepSize, stepSize):
+            # check size in H
+            if H+windowsSizeH < Ht:
+                EH = H+windowsSizeH
+            else:
+                EH = windowsSizeH
+            # check size in W
+            if W+windowsSizeW < Wt:
+                EW = W+windowsSizeW
+            else:
+                EW = windowsSizeW
+            # compute covariance on the patch
+            print([W, H, EW, EH])
+            testCov = computeConvariance(Pint=PintTarget, Qint=QintTarget, roi=[W, H, EW, EH])
+            # compute distance
+            dist = computeConvarianceDist(targetCov, testCov)
+
+
+    return None
+
+
+
 # get image and resize it
-img = cv2.imread('target.jpg')
-img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-img = cv2.resize(img, (640,480))
+target = cv2.imread('test.jpg')
+target = cv2.cvtColor(target, cv2.COLOR_BGR2RGB)
+target = cv2.resize(target, (640,480))
 
 # get ROI
-roi = cv2.selectROI(img)
+roi = cv2.selectROI(target)
 print(roi)
 cv2.destroyAllWindows()
 
 # compute feature in region
-Feature, Pint, Qint = computeFeature(img)
-
-# compute covariance on the region
-region = Feature[int(roi[1]):int(roi[1]+roi[3]), int(roi[0]):int(roi[0]+roi[2]), :]
-regionCovariance = computeConvarianceRegion(region)
-plt.imshow(regionCovariance)
+FeatureTarget, PintTarget, QintTarget = computeFeature(img=target)
+print(FeatureTarget.shape)
+plt.imshow(FeatureTarget[:,:,0])
+plt.show()
+plt.imshow(FeatureTarget[:,:,1])
+plt.show()
+plt.imshow(FeatureTarget[:,:,2])
+plt.show()
+plt.imshow(FeatureTarget[:,:,3])
 plt.show()
 
 # compute region covariance matrix of the region feature with the integral representation
-regionCovarianceInt = computeConvariance(Pint, Qint, roi)
-plt.imshow(regionCovarianceInt)
+targetCov = computeConvariance(Pint=PintTarget, Qint=QintTarget, roi=roi)
+plt.imshow(targetCov)
 plt.show()
 
-# compute distance
-dist = computeConvarianceDist(regionCovariance, regionCovarianceInt)
-print(dist)
+# perform Brute Force search on the test image
+pose = searchDescriptor(targetCov=targetCov, targetRoi=roi, PintTest=PintTarget, QintTest=QintTarget, nbDim=9)
