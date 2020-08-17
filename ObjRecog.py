@@ -90,7 +90,7 @@ def computeConvarianceDist(CRef, CCur):
     return norm(logm(CRef) - logm(CCur), ord='fro')
 
 
-def searchDescriptor(targetCov, targetRoi, PintTest, QintTest, nbDim):
+def searchDescriptor(targetCov, targetRoi, PintTest, QintTest, nbDim, windowSize, stepSize):
     # target region dimension
     x0 = targetRoi[0]
     y0 = targetRoi[1]
@@ -103,31 +103,16 @@ def searchDescriptor(targetCov, targetRoi, PintTest, QintTest, nbDim):
     print("Target ROI size = ", Hroi, Wroi)
     print("Test ROI size = ", Ht, Wt)
 
-    stepSize = 5
-    windowsSizeH = 30
-    windowsSizeW = 30
-    for H in range(0, Ht-stepSize, stepSize):
-        for W in range(0, Wt-stepSize, stepSize):
-            # check size in H
-            if H+windowsSizeH < Ht:
-                EH = H+windowsSizeH
-            else:
-                EH = windowsSizeH
-            # check size in W
-            if W+windowsSizeW < Wt:
-                EW = W+windowsSizeW
-            else:
-                EW = windowsSizeW
-            # compute covariance on the patch
-            print([W, H, EW, EH])
-            testCov = computeConvariance(Pint=PintTarget, Qint=QintTarget, roi=[W, H, EW, EH])
-            # compute distance
-            dist = computeConvarianceDist(targetCov, testCov)
+    windowsSizeH = windowSize[0]
+    windowsSizeW = windowSize[0]
+    for d in range(1, nbDim+1):
+        windowsSizeH = np.ceil(windowsSizeH*1.5)
+        windowsSizeW = np.ceil(windowsSizeH*1.5)
+        for H in range(0, Ht-stepSize, stepSize):
+            for W in range(0, Wt-stepSize, stepSize):
 
 
     return None
-
-
 
 # get image and resize it
 target = cv2.imread('test.jpg')
@@ -157,4 +142,4 @@ plt.imshow(targetCov)
 plt.show()
 
 # perform Brute Force search on the test image
-pose = searchDescriptor(targetCov=targetCov, targetRoi=roi, PintTest=PintTarget, QintTest=QintTarget, nbDim=9)
+pose = searchDescriptor(targetCov=targetCov, targetRoi=roi, PintTest=PintTarget, QintTest=QintTarget, nbDim=9, windowSize=[10,10], stepSize=[5])
