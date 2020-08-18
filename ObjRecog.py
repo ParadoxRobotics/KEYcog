@@ -91,25 +91,30 @@ def computeConvarianceDist(CRef, CCur):
 
 
 def searchDescriptor(targetCov, targetRoi, PintTest, QintTest, nbDim, windowSize, stepSize):
-    # target region dimension
-    x0 = targetRoi[0]
-    y0 = targetRoi[1]
-    Wroi = targetRoi[2]
-    Hroi = targetRoi[3]
     # Test Pint size
     Wt = PintTest.shape[1]
     Ht = PintTest.shape[0]
-
-    print("Target ROI size = ", Hroi, Wroi)
-    print("Test ROI size = ", Ht, Wt)
-
+    # Get windows size
     windowsSizeH = windowSize[0]
-    windowsSizeW = windowSize[0]
+    windowsSizeW = windowSize[1]
     for d in range(1, nbDim+1):
-        windowsSizeH = np.ceil(windowsSizeH*1.5)
-        windowsSizeW = np.ceil(windowsSizeH*1.5)
+        # for each spatial dimension recompute windows size
+        windowsSizeH = int(np.ceil(windowsSizeH*1.5))
+        windowsSizeW = int(np.ceil(windowsSizeW*1.5))
+        print(windowsSizeH, windowsSizeW)
         for H in range(0, Ht-stepSize, stepSize):
             for W in range(0, Wt-stepSize, stepSize):
+                if W+windowsSizeW > Wt:
+                    EW = W-Wt
+                else:
+                    EW = windowsSizeW
+                if H+windowsSizeH > Ht:
+                    EH = H-Ht
+                else:
+                    EH = windowsSizeH
+                # compute test covariance
+                testCov = computeConvariance(Pint=PintTest, Qint=QintTest, roi=[W, H, EW, EH])
+                #dist = computeConvarianceDist(CRef=targetCov, CCur=testCov)
 
 
     return None
@@ -142,4 +147,4 @@ plt.imshow(targetCov)
 plt.show()
 
 # perform Brute Force search on the test image
-pose = searchDescriptor(targetCov=targetCov, targetRoi=roi, PintTest=PintTarget, QintTest=QintTarget, nbDim=9, windowSize=[10,10], stepSize=[5])
+pose = searchDescriptor(targetCov=targetCov, targetRoi=roi, PintTest=PintTarget, QintTest=QintTarget, nbDim=9, windowSize=[20,20], stepSize=20)
