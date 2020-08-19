@@ -23,6 +23,8 @@ import cv2
 from matplotlib import pyplot as plt
 from matplotlib import pyplot
 
+import time
+
 # compute feature tesor F = [Hue, Sat, magnitude, angle] and the 1st/2nd order image integral
 def computeFeature(img):
     # compute Hue and Saturation
@@ -89,8 +91,32 @@ def computeConvariance(Pint, Qint, roi):
 def computeConvarianceDist(CRef, CCur):
     return norm(logm(CRef) - logm(CCur), ord='fro')
 
+def computeScale(roi, Pint, nbDim):
+    # image size
+    H = Pint.shape[1]
+    W = Pint.shape[0]
+    # roi shape
+    x0 = roi[0]
+    y0 = roi[1]
+    Wr = roi[2]
+    Hr = roi[3]
+    # init scale matrix
+    scale = np.zeros((nbDim, 2))
+    # compute scale
+    if H == min(H,W):
+        ratio = Wr/Hr
+        for i in range(0, nbDim):
+            scale[i,:] = i*np.floor(H/nbDim), i*np.floor(ratio*H/nbDim)
+
+    elif W == min(H,W):
+        ratio = Hr/Wr
+        for i in range(0, nbDim):
+            scale[i,:] = i*np.floor(ratio*W/nbDim), i*np.floor(W/nbDim)
+    return scale
 
 def searchDescriptor(targetCov, targetRoi, PintTest, QintTest, nbDim, windowSize, stepSize):
+    # location and cost of the windows
+    cost = []
     # Test Pint size
     Wt = PintTest.shape[1]
     Ht = PintTest.shape[0]
@@ -101,28 +127,61 @@ def searchDescriptor(targetCov, targetRoi, PintTest, QintTest, nbDim, windowSize
         # for each spatial dimension recompute windows size
         windowsSizeH = int(np.ceil(windowsSizeH*1.5))
         windowsSizeW = int(np.ceil(windowsSizeW*1.5))
-        print(windowsSizeH, windowsSizeW)
+        # search over the image
         for H in range(0, Ht-stepSize, stepSize):
             for W in range(0, Wt-stepSize, stepSize):
                 if W+windowsSizeW > Wt:
-                    EW = W-Wt
+                    EW = abs(W-Wt)-1
                 else:
                     EW = windowsSizeW
                 if H+windowsSizeH > Ht:
-                    EH = H-Ht
+                    EH = abs(H-Ht)-1
                 else:
                     EH = windowsSizeH
                 # compute test covariance
                 testCov = computeConvariance(Pint=PintTest, Qint=QintTest, roi=[W, H, EW, EH])
-                #dist = computeConvarianceDist(CRef=targetCov, CCur=testCov)
+                # if non null matrix compute distance
+                if np.all(testCov != 0):
+                    dist = computeConvarianceDist(CRef=targetCov, CCur=testCov)
+                    cost.append([dist, W, H, EW, EH])
+    return min(cost)
 
-
-    return None
+def searchDescriptor_(targetCov, targetRoi, PintTest, QintTest, nbDim, windowSize, stepSize):
+    # location and cost of the windows
+    cost = []
+    # Test Pint size
+    Wt = PintTest.shape[1]
+    Ht = PintTest.shape[0]
+    # Get windows size
+    windowsSizeH = windowSize[0]
+    windowsSizeW = windowSize[1]
+    for d in range(1, nbDim):
+        # for each spatial dimension recompute windows size
+        windowsSizeW = int(windowSize[d,1]-1)
+        windowsSizeH = int(windowSize[d,0]-1)
+        # search over the image
+        for H in range(0, Ht-stepSize, stepSize):
+            for W in range(0, Wt-stepSize, stepSize):
+                if W+windowsSizeW > Wt:
+                    EW = abs(W-Wt)-1
+                else:
+                    EW = windowsSizeW
+                if H+windowsSizeH > Ht:
+                    EH = abs(H-Ht)-1
+                else:
+                    EH = windowsSizeH
+                # compute test covariance
+                testCov = computeConvariance(Pint=PintTest, Qint=QintTest, roi=[W, H, EW, EH])
+                # if non null matrix compute distance
+                if np.all(testCov != 0):
+                    dist = computeConvarianceDist(CRef=targetCov, CCur=testCov)
+                    cost.append([dist, W, H, EW, EH])
+    return min(cost)
 
 # get image and resize it
 target = cv2.imread('test.jpg')
 target = cv2.cvtColor(target, cv2.COLOR_BGR2RGB)
-target = cv2.resize(target, (640,480))
+target = cv2.resize(target, (320,240))
 
 # get ROI
 roi = cv2.selectROI(target)
@@ -147,4 +206,13 @@ plt.imshow(targetCov)
 plt.show()
 
 # perform Brute Force search on the test image
-pose = searchDescriptor(targetCov=targetCov, targetRoi=roi, PintTest=PintTarget, QintTest=QintTarget, nbDim=9, windowSize=[20,20], stepSize=20)
+windowSize = computeScale(roi=roi, Pint=PintTarget, nbDim=8)
+print(windowSize)
+start_time = time.time()
+pose = searchDescriptor(targetCov=targetCov, targetRoi=roi, PintTest=PintTarget, QintTest=QintTarget, nbDim=8, windowSize=[10,10], stepSize=5)
+print((time.time() - start_time))
+cv2.rectangle(target, (pose[1], pose[2]), (pose[1]+pose[3], pose[2]+pose[4]), (255,0,0), 2)
+plt.imshow(target)
+plt.show()
+
+print(computeScale(roi=roi, Pint=PintTarget, nbDim=9))
