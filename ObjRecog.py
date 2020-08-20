@@ -152,7 +152,6 @@ def searchDescriptor_(targetCov, targetRoi, PintTest, QintTest, nbDim, windowSiz
                 print([W, H, EW, EH])
                 # compute test covariance
                 testCov = computeConvariance(Pint=PintTest, Qint=QintTest, roi=[W, H, EW, EH])
-                print(testCov)
                 # if non null matrix compute distance
                 if np.all(testCov != 0):
                     dist = computeConvarianceDist(CRef=targetCov, CCur=testCov)
