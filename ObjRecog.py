@@ -106,12 +106,12 @@ def computeScale(roi, Pint, nbDim):
     if H == min(H,W):
         ratio = Wr/Hr
         for i in range(0, nbDim):
-            scale[i,:] = i*np.floor(H/nbDim), i*np.floor(ratio*H/nbDim)
+            scale[i,:] = i*np.ceil(H/nbDim), i*np.ceil(ratio*H/nbDim)
 
     elif W == min(H,W):
         ratio = Hr/Wr
         for i in range(0, nbDim):
-            scale[i,:] = i*np.floor(ratio*W/nbDim), i*np.floor(W/nbDim)
+            scale[i,:] = i*np.ceil(ratio*W/nbDim), i*np.ceil(W/nbDim)
     return scale
 
 def searchDescriptor(targetCov, targetRoi, PintTest, QintTest, nbDim, windowSize, stepSize):
@@ -157,19 +157,20 @@ def searchDescriptor_(targetCov, targetRoi, PintTest, QintTest, nbDim, windowSiz
     windowsSizeW = windowSize[1]
     for d in range(1, nbDim):
         # for each spatial dimension recompute windows size
-        windowsSizeW = int(windowSize[d,1]-1)
-        windowsSizeH = int(windowSize[d,0]-1)
+        windowsSizeW = int(windowSize[d,1])
+        windowsSizeH = int(windowSize[d,0])
         # search over the image
         for H in range(0, Ht-stepSize, stepSize):
             for W in range(0, Wt-stepSize, stepSize):
-                if W+windowsSizeW > Wt:
+                if W+windowsSizeW > Wt-1:
                     EW = abs(W-Wt)-1
                 else:
                     EW = windowsSizeW
-                if H+windowsSizeH > Ht:
+                if H+windowsSizeH > Ht-1:
                     EH = abs(H-Ht)-1
                 else:
                     EH = windowsSizeH
+                print([W, H, EW, EH])
                 # compute test covariance
                 testCov = computeConvariance(Pint=PintTest, Qint=QintTest, roi=[W, H, EW, EH])
                 # if non null matrix compute distance
@@ -206,10 +207,10 @@ plt.imshow(targetCov)
 plt.show()
 
 # perform Brute Force search on the test image
-windowSize = computeScale(roi=roi, Pint=PintTarget, nbDim=8)
+windowSize = computeScale(roi=roi, Pint=PintTarget, nbDim=9)
 print(windowSize)
 start_time = time.time()
-pose = searchDescriptor(targetCov=targetCov, targetRoi=roi, PintTest=PintTarget, QintTest=QintTarget, nbDim=8, windowSize=[10,10], stepSize=5)
+pose = searchDescriptor_(targetCov=targetCov, targetRoi=roi, PintTest=PintTarget, QintTest=QintTarget, nbDim=9, windowSize=windowSize, stepSize=20)
 print((time.time() - start_time))
 cv2.rectangle(target, (pose[1], pose[2]), (pose[1]+pose[3], pose[2]+pose[4]), (255,0,0), 2)
 plt.imshow(target)
