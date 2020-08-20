@@ -19,7 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import numpy as np
-from scipy.linalg import logm, norm
+from scipy.linalg import logm, norm, eigvalsh
 import cv2
 from matplotlib import pyplot as plt
 from matplotlib import pyplot
@@ -33,7 +33,7 @@ def computeFeature(img):
     # get RGB component
     R, G, B = cv2.split(img)
     # compute Hue and Saturation
-    hsvImg = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+    hsvImg = cv2.cvtColor(cv2.blur(img,(3,3)), cv2.COLOR_RGB2HSV)
     H, S, V = cv2.split(hsvImg)
     # compute gradient
     dx = cv2.Sobel(cv2.cvtColor(img, cv2.COLOR_RGB2GRAY), cv2.CV_32F, 1, 0)
@@ -125,38 +125,6 @@ def computeScale(roi, Pint, nbDim):
             scale[i,:] = i*np.ceil(ratio*W/nbDim), i*np.ceil(W/nbDim)
     return scale
 
-def searchDescriptor(targetCov, targetRoi, PintTest, QintTest, nbDim, windowSize, stepSize):
-    # location and cost of the windows
-    cost = []
-    # Test Pint size
-    Wt = PintTest.shape[1]
-    Ht = PintTest.shape[0]
-    # Get windows size
-    windowsSizeH = windowSize[0]
-    windowsSizeW = windowSize[1]
-    for d in range(1, nbDim+1):
-        # for each spatial dimension recompute windows size
-        windowsSizeH = int(np.ceil(windowsSizeH*1.5))
-        windowsSizeW = int(np.ceil(windowsSizeW*1.5))
-        # search over the image
-        for H in range(0, Ht-stepSize, stepSize):
-            for W in range(0, Wt-stepSize, stepSize):
-                if W+windowsSizeW > Wt:
-                    EW = abs(W-Wt)-1
-                else:
-                    EW = windowsSizeW
-                if H+windowsSizeH > Ht:
-                    EH = abs(H-Ht)-1
-                else:
-                    EH = windowsSizeH
-                # compute test covariance
-                testCov = computeConvariance(Pint=PintTest, Qint=QintTest, roi=[W, H, EW, EH])
-                # if non null matrix compute distance
-                if np.all(testCov != 0):
-                    dist = computeConvarianceDist(CRef=targetCov, CCur=testCov)
-                    cost.append([dist, W, H, EW, EH])
-    return min(cost)
-
 def searchDescriptor_(targetCov, targetRoi, PintTest, QintTest, nbDim, windowSize, stepSize):
     # location and cost of the windows
     cost = []
@@ -184,6 +152,7 @@ def searchDescriptor_(targetCov, targetRoi, PintTest, QintTest, nbDim, windowSiz
                 print([W, H, EW, EH])
                 # compute test covariance
                 testCov = computeConvariance(Pint=PintTest, Qint=QintTest, roi=[W, H, EW, EH])
+                print(testCov)
                 # if non null matrix compute distance
                 if np.all(testCov != 0):
                     dist = computeConvarianceDist(CRef=targetCov, CCur=testCov)
@@ -195,6 +164,11 @@ target = cv2.imread('t1.jpg')
 target = cv2.cvtColor(target, cv2.COLOR_BGR2RGB)
 target = cv2.resize(target, (320,240))
 
+# get image and resize it
+test = cv2.imread('t0.jpg')
+test = cv2.cvtColor(test, cv2.COLOR_BGR2RGB)
+test = cv2.resize(test, (320,240))
+
 # get ROI
 roi = cv2.selectROI(target)
 print(roi)
@@ -202,6 +176,7 @@ cv2.destroyAllWindows()
 
 # compute feature in region
 FeatureTarget, PintTarget, QintTarget = computeFeature(img=target)
+"""
 print(FeatureTarget.shape)
 plt.imshow(FeatureTarget[:,:,0])
 plt.show()
@@ -223,8 +198,32 @@ plt.imshow(FeatureTarget[:,:,8])
 plt.show()
 plt.imshow(FeatureTarget[:,:,9])
 plt.show()
-
-
+"""
+# compute feature in region
+FeatureTest, PintTest, QintTest = computeFeature(img=test)
+"""
+print(FeatureTest.shape)
+plt.imshow(FeatureTest[:,:,0])
+plt.show()
+plt.imshow(FeatureTest[:,:,1])
+plt.show()
+plt.imshow(FeatureTest[:,:,2])
+plt.show()
+plt.imshow(FeatureTest[:,:,3])
+plt.show()
+plt.imshow(FeatureTest[:,:,4])
+plt.show()
+plt.imshow(FeatureTest[:,:,5])
+plt.show()
+plt.imshow(FeatureTest[:,:,6])
+plt.show()
+plt.imshow(FeatureTest[:,:,7])
+plt.show()
+plt.imshow(FeatureTest[:,:,8])
+plt.show()
+plt.imshow(FeatureTest[:,:,9])
+plt.show()
+"""
 # compute region covariance matrix of the region feature with the integral representation
 targetCov = computeConvariance(Pint=PintTarget, Qint=QintTarget, roi=roi)
 plt.imshow(targetCov)
@@ -234,10 +233,8 @@ plt.show()
 windowSize = computeScale(roi=roi, Pint=PintTarget, nbDim=9)
 print(windowSize)
 start_time = time.time()
-pose = searchDescriptor_(targetCov=targetCov, targetRoi=roi, PintTest=PintTarget, QintTest=QintTarget, nbDim=9, windowSize=windowSize, stepSize=20)
+pose = searchDescriptor_(targetCov=targetCov, targetRoi=roi, PintTest=PintTest, QintTest=QintTest, nbDim=9, windowSize=windowSize, stepSize=5)
 print((time.time() - start_time))
-cv2.rectangle(target, (pose[1], pose[2]), (pose[1]+pose[3], pose[2]+pose[4]), (255,0,0), 2)
-plt.imshow(target)
+cv2.rectangle(test, (pose[1], pose[2]), (pose[1]+pose[3], pose[2]+pose[4]), (255,0,0), 2)
+plt.imshow(test)
 plt.show()
-
-print(computeScale(roi=roi, Pint=PintTarget, nbDim=9))
