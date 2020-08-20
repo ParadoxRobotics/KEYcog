@@ -1,3 +1,4 @@
+
 # Robust, efficient and simple single objet recognition for robot application
 # this work is based on covariant matrix descriptor and deformable template matching (DTM)
 # Author : Munch Quentin, 2020.
@@ -27,6 +28,10 @@ import time
 
 # compute feature tesor F = [Hue, Sat, magnitude, angle] and the 1st/2nd order image integral
 def computeFeature(img):
+    # get intensity
+    I = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    # get RGB component
+    R, G, B = cv2.split(img)
     # compute Hue and Saturation
     hsvImg = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
     H, S, V = cv2.split(hsvImg)
@@ -45,13 +50,19 @@ def computeFeature(img):
     angle = cv2.phase(dx, dy, angleInDegrees=True)
     angle = cv2.bitwise_and(angle, angle, mask=magMask)
     # construct feature tensor
-    F = np.dstack((H, S, mag, angle))
+    F = np.dstack((I, R, G, B, H, S, dx, dy, mag, angle))
     # compute P matrix H+1xW+1xD (first order integral image)
+    IInt = cv2.integral(I, sdepth=cv2.CV_64F)
+    RInt = cv2.integral(R, sdepth=cv2.CV_64F)
+    GInt = cv2.integral(G, sdepth=cv2.CV_64F)
+    BInt = cv2.integral(B, sdepth=cv2.CV_64F)
     HInt = cv2.integral(H, sdepth=cv2.CV_64F)
     SInt = cv2.integral(S, sdepth=cv2.CV_64F)
+    dxInt = cv2.integral(dx, sdepth=cv2.CV_64F)
+    dyInt = cv2.integral(dy, sdepth=cv2.CV_64F)
     magInt = cv2.integral(mag, sdepth=cv2.CV_64F)
     angleInt = cv2.integral(angle, sdepth=cv2.CV_64F)
-    Pint = np.dstack((HInt, SInt, magInt, angleInt))
+    Pint = np.dstack((IInt, RInt, GInt, BInt, HInt, SInt, dxInt, dyInt, magInt, angleInt))
     # compute Q matrix H+1xW+1xDxD (second order integral image)
     Qint = np.zeros((F.shape[0]+1, F.shape[1]+1, int((F.shape[2] * (F.shape[2] + 1)) / 2 )))
     idx = 0
@@ -180,7 +191,7 @@ def searchDescriptor_(targetCov, targetRoi, PintTest, QintTest, nbDim, windowSiz
     return min(cost)
 
 # get image and resize it
-target = cv2.imread('test.jpg')
+target = cv2.imread('t1.jpg')
 target = cv2.cvtColor(target, cv2.COLOR_BGR2RGB)
 target = cv2.resize(target, (320,240))
 
@@ -200,6 +211,19 @@ plt.imshow(FeatureTarget[:,:,2])
 plt.show()
 plt.imshow(FeatureTarget[:,:,3])
 plt.show()
+plt.imshow(FeatureTarget[:,:,4])
+plt.show()
+plt.imshow(FeatureTarget[:,:,5])
+plt.show()
+plt.imshow(FeatureTarget[:,:,6])
+plt.show()
+plt.imshow(FeatureTarget[:,:,7])
+plt.show()
+plt.imshow(FeatureTarget[:,:,8])
+plt.show()
+plt.imshow(FeatureTarget[:,:,9])
+plt.show()
+
 
 # compute region covariance matrix of the region feature with the integral representation
 targetCov = computeConvariance(Pint=PintTarget, Qint=QintTarget, roi=roi)
