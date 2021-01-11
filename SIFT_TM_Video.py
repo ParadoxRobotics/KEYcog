@@ -74,7 +74,7 @@ while True:
             if scenePoint.shape[0] > 30:
                 # estimate homographical transformation
                 TF, mask =  cv2.findHomography(objPoint, scenePoint, cv2.RANSAC, 0.99)
-                if TF is not None:
+                if TF is not None and mask[mask==1].size > 15::
                     # transform obj corners according the homographical transformation in the scene
                     h,w = template_img.shape
                     pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
