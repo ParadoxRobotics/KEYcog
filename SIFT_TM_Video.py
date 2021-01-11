@@ -11,7 +11,7 @@ from imutils.video import WebcamVideoStream
 
 # get template object image
 template_img = cv2.imread('template_.png', cv2.IMREAD_GRAYSCALE)
-# init feature detector SIFT
+# init feature detector/descriptor SIFT
 SIFT = cv2.SIFT_create()
 # init feature matcher KNN
 matcher = cv2.DescriptorMatcher_create("BruteForce")
