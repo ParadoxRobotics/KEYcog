@@ -80,7 +80,7 @@ while True:
                     pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
                     dst = cv2.perspectiveTransform(pts, TF)
                     for i in range(scenePoint.shape[0]):
-                        img_matches = cv2.circle(img_matches, (scenePoint[i,0], scenePoint[i,1]), 5, [0,255,255], -1)
+                        img_matches = cv2.circle(img_matches, (int(scenePoint[i,0]), int(scenePoint[i,1])), 5, [0,255,255], -1)
                     img_matches = cv2.polylines(img_matches, [np.int32(dst)], True, (0,255,0), 20, cv2.LINE_AA)
 
     # draw
