@@ -12,14 +12,17 @@ from imutils.video import WebcamVideoStream
 import PySimpleGUI as sg
 
 # main code for learning object on the fly
+
+
 def main():
     # generate theme
     sg.theme('DarkAmber')
     # All the stuff inside your window.
-    layout = [  [sg.Image(filename='', key='-frame-'), sg.Image(filename='', key='-model-')],
-                [sg.Button('Learn Model'), sg.Button('Close')] ]
+    layout = [[sg.Image(filename='', key='-frame-'), sg.Image(filename='', key='-model-')],
+              [sg.Button('Learn Model'), sg.Button('Close')]]
     # Create the Window
-    window = sg.Window('SIFT model Learning GUI', layout, location=(800, 400), finalize=True)
+    window = sg.Window('SIFT model Learning GUI', layout,
+                       location=(800, 400), finalize=True)
     # init frame acquisition
     cam = cv2.VideoCapture(0)
     print("Camera init -> DONE")
@@ -52,14 +55,17 @@ def main():
         if event == 'Learn Model' or event is None:
             # get object ROI
             roi = cv2.selectROI(scene_img_RGB)
-            model_img = scene_img_RGB[int(roi[1]):int(roi[1]+roi[3]), int(roi[0]):int(roi[0]+roi[2])]
+            model_img = scene_img_RGB[int(roi[1]):int(
+                roi[1]+roi[3]), int(roi[0]):int(roi[0]+roi[2])]
             cv2.destroyAllWindows()
             # find feature in the object ROI
-            kp_obj, des_obj = SIFT.detectAndCompute(cv2.cvtColor(model_img, cv2.COLOR_BGR2GRAY), None)
+            kp_obj, des_obj = SIFT.detectAndCompute(
+                cv2.cvtColor(model_img, cv2.COLOR_BGR2GRAY), None)
             des_obj /= (des_obj.sum(axis=1, keepdims=True) + 1e-7)
             des_obj = np.sqrt(des_obj)
             # draw detected feature in the ROI
-            model_img = cv2.drawKeypoints(model_img, kp_obj, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            model_img = cv2.drawKeypoints(
+                model_img, kp_obj, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
         # perform object detection in the current state
         if model_img is not None and kp_obj is not None and des_obj is not None:
             # convert frame in gray
@@ -72,18 +78,18 @@ def main():
             knn_matches = matcher.knnMatch(des_obj, des_scene, 2)
             # filter matches (lowe ratio)
             good_matches = []
-            for m,n in knn_matches:
+            for m, n in knn_matches:
                 if m.distance < ratio_thresh * n.distance:
                     good_matches.append(m)
             # create empty keypoint position vector for all good matches
-            obj = np.empty((len(good_matches),2), dtype=np.float32)
-            scene = np.empty((len(good_matches),2), dtype=np.float32)
+            obj = np.empty((len(good_matches), 2), dtype=np.float32)
+            scene = np.empty((len(good_matches), 2), dtype=np.float32)
             # update keypoints position
             for i in range(len(good_matches)):
-                obj[i,0] = kp_obj[good_matches[i].queryIdx].pt[0]
-                obj[i,1] = kp_obj[good_matches[i].queryIdx].pt[1]
-                scene[i,0] = kp_scene[good_matches[i].trainIdx].pt[0]
-                scene[i,1] = kp_scene[good_matches[i].trainIdx].pt[1]
+                obj[i, 0] = kp_obj[good_matches[i].queryIdx].pt[0]
+                obj[i, 1] = kp_obj[good_matches[i].queryIdx].pt[1]
+                scene[i, 0] = kp_scene[good_matches[i].trainIdx].pt[0]
+                scene[i, 1] = kp_scene[good_matches[i].trainIdx].pt[1]
             if scene.shape[0] > 10:
                 # compute bandwith for the clustering
                 bandwidth = estimate_bandwidth(scene, quantile=0.2)
@@ -100,22 +106,28 @@ def main():
                     # if cluster point number superior to a threshold e=10
                     if scenePoint.shape[0] > 10:
                         # estimate homographical transformation
-                        TF, mask =  cv2.findHomography(objPoint, scenePoint, cv2.RANSAC, 0.99)
-                        if TF is not None and mask[mask==1].size > 15:
+                        TF, mask = cv2.findHomography(
+                            objPoint, scenePoint, cv2.RANSAC, 0.99)
+                        if TF is not None and mask[mask == 1].size > 15:
                             # transform obj corners according the homographical transformation in the scene
-                            h,w,c = model_img.shape
-                            pts = np.float32([[0,0],[0,h-1],[w-1,h-1],[w-1,0]]).reshape(-1,1,2)
+                            h, w, c = model_img.shape
+                            pts = np.float32(
+                                [[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
                             dst = cv2.perspectiveTransform(pts, TF)
                             for i in range(scenePoint.shape[0]):
-                                scene_img_RGB = cv2.circle(scene_img_RGB, (scenePoint[i,0], scenePoint[i,1]), 5, [0,255,255], -1)
-                                scene_img_RGB = cv2.polylines(scene_img_RGB, [np.int32(dst)], True, (0,255,0), 20, cv2.LINE_AA)
+                                scene_img_RGB = cv2.circle(
+                                    scene_img_RGB, (int(scenePoint[i, 0]), int(scenePoint[i, 1])), 5, [0, 255, 255], -1)
+                                scene_img_RGB = cv2.polylines(
+                                    scene_img_RGB, [np.int32(dst)], True, (0, 255, 0), 20, cv2.LINE_AA)
         # update image on the GUI
-        imgbytes_frame = cv2.imencode('.png', cv2.resize(scene_img_RGB, (640, 480), cv2.INTER_LINEAR))[1].tobytes()
+        imgbytes_frame = cv2.imencode('.png', cv2.resize(
+            scene_img_RGB, (640, 480), cv2.INTER_LINEAR))[1].tobytes()
         imgbytes_model = cv2.imencode('.png', model_img)[1].tobytes()
         window['-frame-'].update(data=imgbytes_frame)
         window['-model-'].update(data=imgbytes_model)
 
     window.close()
+
 
 # start
 main()
